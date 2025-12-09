@@ -23,10 +23,27 @@ export function upgradeToWebSocket(type: WebSocketType): UpgradeToWebSocket {
       data = { type: "auth", nonce };
     } else {
       // Parse query params, e.g. ?v=10&encoding=json&compress=zlib-stream
-      const url = new URL(req.url);
-      const compress = url.searchParams.get("compress") === "zlib-stream";
-      const encoding =
-        url.searchParams.get("encoding") === "etf" ? "etf" : "json";
+      const searchParams = new URL(req.url).searchParams;
+
+      const encodingParam = searchParams.get("encoding") ?? "json";
+      const compressParam = searchParams.get("compress");
+
+      let encoding: "json" | "etf";
+      let compress: "zlib" | "zstd" | null;
+
+      if (encodingParam === "etf") {
+        encoding = "etf";
+      } else {
+        encoding = "json";
+      }
+
+      if (compressParam === "zlib-stream") {
+        compress = "zlib";
+      } else if (compressParam === "zstd-stream") {
+        compress = "zstd";
+      } else {
+        compress = null;
+      }
 
       data = {
         type: "gateway",

@@ -162,7 +162,8 @@ export async function handleGatewayMessage(
       break;
 
     default:
-      console.log("Received gateway message:", data);
+      console.log("Received gateway message");
+      console.dir(data, { depth: null });
       break;
   }
 }

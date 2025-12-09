@@ -3,6 +3,10 @@ import { createDeflate, constants, Deflate } from "zlib";
 import { GatewayWebSocketData } from "../types";
 import { encode } from "./encoding";
 
+import * as zstd from "@bokuweb/zstd-wasm";
+
+await zstd.init();
+
 const deflateContexts = new WeakMap<
   ServerWebSocket<GatewayWebSocketData>,
   Deflate
@@ -19,7 +23,7 @@ function getDeflateContext(ws: ServerWebSocket<GatewayWebSocketData>): Deflate {
   return deflate;
 }
 
-function compress(deflate: Deflate, data: Buffer): Promise<Buffer> {
+function compressZlib(deflate: Deflate, data: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
 
@@ -49,6 +53,10 @@ function compress(deflate: Deflate, data: Buffer): Promise<Buffer> {
   });
 }
 
+function compressZstd(data: Buffer): Buffer {
+  return Buffer.from(zstd.compress(data, 3));
+}
+
 export async function sendGatewayMessage(
   ws: ServerWebSocket<GatewayWebSocketData>,
   payload: object
@@ -56,13 +64,21 @@ export async function sendGatewayMessage(
   const encoded = encode(payload, ws.data.encoding);
   const data = typeof encoded === "string" ? Buffer.from(encoded) : encoded;
 
-  if (!ws.data.compress) {
+  if (ws.data.compress === null) {
     ws.send(data);
     return;
   }
 
-  const deflate = getDeflateContext(ws);
-  const compressed = await compress(deflate, data);
+  let compressed: Buffer;
+
+  if (ws.data.compress === "zstd") {
+    compressed = compressZstd(data);
+  } else if (ws.data.compress === "zlib") {
+    const deflate = getDeflateContext(ws);
+    compressed = await compressZlib(deflate, data);
+  } else {
+    throw new Error(`Unsupported compression method: ${ws.data.compress}`);
+  }
 
   ws.send(compressed);
 }

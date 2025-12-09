@@ -6,7 +6,7 @@ export type AuthGatewayWebSocketData = {
 
 export type GatewayWebSocketData = {
   type: "gateway";
-  compress: boolean;
+  compress: "zlib" | "zstd" | null;
   encoding: "json" | "etf";
   sequence: number;
 };
